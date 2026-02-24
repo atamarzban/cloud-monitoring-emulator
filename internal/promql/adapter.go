@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/histogram"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
@@ -190,7 +191,7 @@ func (q *storeQuerier) timeInterval() *monitoringpb.TimeInterval {
 func GCPToPromLabels(ts *monitoringpb.TimeSeries) labels.Labels {
 	b := labels.NewBuilder(labels.EmptyLabels())
 
-	b.Set(labels.MetricName, MetricTypeToPromName(ts.GetMetric().GetType()))
+	b.Set(model.MetricNameLabel, MetricTypeToPromName(ts.GetMetric().GetType()))
 
 	for k, v := range ts.GetMetric().GetLabels() {
 		b.Set(k, v)

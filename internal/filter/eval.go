@@ -108,10 +108,7 @@ func evalFunction(op ComparisonOp, fieldVal string, fn *FunctionCall) bool {
 	case "one_of":
 		for _, arg := range fn.Args {
 			if fieldVal == arg {
-				if op == OpNeq {
-					return false
-				}
-				return true
+				return op != OpNeq
 			}
 		}
 		if op == OpNeq {
