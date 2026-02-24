@@ -1,5 +1,7 @@
 # Cloud Monitoring Emulator
 
+[![CI](https://github.com/atamarzban/cloud-monitoring-emulator/actions/workflows/ci.yml/badge.svg)](https://github.com/atamarzban/cloud-monitoring-emulator/actions/workflows/ci.yml)
+
 A local emulator for the [GCP Cloud Monitoring API v3](https://cloud.google.com/monitoring/api/ref_v3/rest). Serves gRPC, REST, and a Prometheus-compatible query API on a single port.
 
 ## Quick Start
