@@ -29,6 +29,7 @@ import (
 	"github.com/ata-marzban/cloud-monitoring-emulator/internal/promql"
 	"github.com/ata-marzban/cloud-monitoring-emulator/internal/server"
 	"github.com/ata-marzban/cloud-monitoring-emulator/internal/store"
+	"github.com/ata-marzban/cloud-monitoring-emulator/internal/token"
 )
 
 // testServer starts a full emulator server on a random port and returns
@@ -56,6 +57,7 @@ func testServer(t *testing.T) (int, func()) {
 	httpMux.Handle("/v3/", gwMux)
 	httpMux.Handle("/v1/", promql.NewHandler(s))
 	httpMux.Handle("/admin/", admin.NewHandler(s))
+	httpMux.Handle("/token", token.NewHandler())
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -1642,6 +1644,94 @@ func TestAdminResetClearsAlertPolicies(t *testing.T) {
 	}
 	if len(listResp.GetAlertPolicies()) != 0 {
 		t.Errorf("after reset: got %d policies, want 0", len(listResp.GetAlertPolicies()))
+	}
+}
+
+// --- Issue 19: OAuth2 token endpoint ---
+
+func TestTokenEndpoint(t *testing.T) {
+	port, cleanup := testServer(t)
+	defer cleanup()
+
+	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+
+	// Valid JWT bearer token exchange.
+	resp, err := http.PostForm(baseURL+"/token", url.Values{
+		"grant_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		"assertion":  {"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ0ZXN0QHRlc3QuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20ifQ.fake-signature"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("token status %d: %s", resp.StatusCode, body)
+	}
+
+	var tokenResp struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+		ExpiresIn   int    `json:"expires_in"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		t.Fatal(err)
+	}
+	if tokenResp.AccessToken != "emulator-fake-token" {
+		t.Errorf("access_token = %q, want emulator-fake-token", tokenResp.AccessToken)
+	}
+	if tokenResp.TokenType != "Bearer" {
+		t.Errorf("token_type = %q, want Bearer", tokenResp.TokenType)
+	}
+	if tokenResp.ExpiresIn != 3600 {
+		t.Errorf("expires_in = %d, want 3600", tokenResp.ExpiresIn)
+	}
+}
+
+func TestTokenEndpointUnsupportedGrantType(t *testing.T) {
+	port, cleanup := testServer(t)
+	defer cleanup()
+
+	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+
+	resp, err := http.PostForm(baseURL+"/token", url.Values{
+		"grant_type": {"client_credentials"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
+	}
+
+	var errResp struct {
+		Error string `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+		t.Fatal(err)
+	}
+	if errResp.Error != "unsupported_grant_type" {
+		t.Errorf("error = %q, want unsupported_grant_type", errResp.Error)
+	}
+}
+
+func TestTokenEndpointMethodNotAllowed(t *testing.T) {
+	port, cleanup := testServer(t)
+	defer cleanup()
+
+	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+
+	resp, err := http.Get(baseURL + "/token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		t.Error("GET /token should not return 200")
 	}
 }
 

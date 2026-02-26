@@ -21,6 +21,7 @@ import (
 	"github.com/ata-marzban/cloud-monitoring-emulator/internal/promql"
 	"github.com/ata-marzban/cloud-monitoring-emulator/internal/server"
 	"github.com/ata-marzban/cloud-monitoring-emulator/internal/store"
+	"github.com/ata-marzban/cloud-monitoring-emulator/internal/token"
 )
 
 func main() {
@@ -56,6 +57,7 @@ func main() {
 	httpMux.Handle("/v3/", gwMux)
 	httpMux.Handle("/v1/", promql.NewHandler(s))
 	httpMux.Handle("/admin/", admin.NewHandler(s))
+	httpMux.Handle("/token", token.NewHandler())
 
 	// Create listener.
 	addr := fmt.Sprintf(":%d", *port)
@@ -88,6 +90,7 @@ func main() {
 		"rest", fmt.Sprintf("http://localhost:%d/v3/", *port),
 		"promql", fmt.Sprintf("http://localhost:%d/v1/projects/{project}/location/global/prometheus/api/v1/", *port),
 		"admin", fmt.Sprintf("http://localhost:%d/admin/", *port),
+		"token", fmt.Sprintf("http://localhost:%d/token", *port),
 	)
 
 	// Graceful shutdown on SIGINT/SIGTERM.

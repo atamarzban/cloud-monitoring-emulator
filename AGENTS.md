@@ -28,6 +28,7 @@ internal/
   promql/adapter.go              Bridges Store → Prometheus storage.Queryable
   promql/handler.go              Prometheus HTTP API handlers
   admin/                         Admin API (POST /admin/reset, GET /admin/state)
+  token/                         Fake OAuth2 token endpoint (POST /token)
   integration/                   Full-stack integration tests
 gen/google/monitoring/v3/        Generated protobuf/gRPC/gateway code (do not edit)
 proto/                           buf generation config
@@ -35,7 +36,7 @@ proto/                           buf generation config
 
 ## Architecture
 
-- **Single port, multiplexed**: cmux dispatches gRPC (HTTP/2 `content-type: application/grpc`) to the gRPC server; everything else goes to an HTTP mux serving REST, Prometheus, and admin routes.
+- **Single port, multiplexed**: cmux dispatches gRPC (HTTP/2 `content-type: application/grpc`) to the gRPC server; everything else goes to an HTTP mux serving REST, Prometheus, admin, and token routes.
 - **In-process grpc-gateway**: REST endpoints are transcoded in-process via `HandlerServer` (no loopback dial).
 - **Store interface** (`internal/store/store.go`): All services receive a `store.Store` via constructor injection. The only implementation is `MemoryStore`.
 - **Thread safety**: `MemoryStore` uses `sync.RWMutex`. All proto messages are deep-cloned via `proto.Clone` on read and write.
@@ -56,3 +57,4 @@ proto/                           buf generation config
 - Pagination uses base64-encoded offset tokens.
 - Validation returns proper gRPC status codes (`InvalidArgument`, `NotFound`, `AlreadyExists`).
 - Generated code lives in `gen/` — regenerate with `make generate`, do not edit by hand.
+- **Keep AGENTS.md up to date**: When adding new packages, endpoints, or changing architecture, update this file as part of the same change.
